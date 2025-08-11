@@ -14,6 +14,10 @@ import sys
 import threading
 from datetime import datetime
 import hashlib
+from dotenv import load_dotenv
+
+# .env dosyasını yükle
+load_dotenv()
 
 # Backup modülünü import et
 try:
@@ -33,18 +37,28 @@ def get_base_path():
 
 class DamiseAuthGUI:
     def __init__(self):
+        # Çevre değişkenlerinden yapılandırma değerlerini al
+        app_title = os.getenv('APP_TITLE', 'Damise Admin Panel - Güvenli Giriş Sistemi')
+        app_version = os.getenv('APP_VERSION', '2.0')
+        window_width = int(os.getenv('WINDOW_DEFAULT_WIDTH', '800'))
+        window_height = int(os.getenv('WINDOW_DEFAULT_HEIGHT', '700'))
+        
         self.root = tk.Tk()
-        self.root.title("Damise Admin Panel - Güvenli Giriş Sistemi v2.0")
-        self.root.geometry("800x700")
+        self.root.title(f"{app_title} v{app_version}")
+        self.root.geometry(f"{window_width}x{window_height}")
         self.root.resizable(True, True)
 
         # Config ve token dosyaları
-        self.token_file = os.path.join(get_base_path(), "damise_token.json")
-        self.credentials_file = os.path.join(get_base_path(), "damise_credentials.json")
+        token_file_name = os.getenv('TOKEN_FILE_NAME', 'damise_token.json')
+        credentials_file_name = os.getenv('CREDENTIALS_FILE_NAME', 'damise_credentials.json')
+        
+        self.token_file = os.path.join(get_base_path(), token_file_name)
+        self.credentials_file = os.path.join(get_base_path(), credentials_file_name)
 
         # API ayarları
-        self.api_base = "https://api-ekosistem.damise.com"
-        self.login_url = f"{self.api_base}/users/login"
+        self.api_base = os.getenv('API_BASE_URL')
+        login_endpoint = os.getenv('LOGIN_ENDPOINT', '/users/login')
+        self.login_url = f"{self.api_base}{login_endpoint}"
 
         # Auth değişkenleri
         self.user_data = None
