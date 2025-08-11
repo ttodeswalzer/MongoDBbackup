@@ -77,7 +77,6 @@ MONGODB_DEFAULT_PORT=27017
 # SSH Tünel Ayarları
 SSH_LOCAL_BIND_ADDRESS=your-ssh-ip
 SSH_DEFAULT_PORT=22
-SSH_LOCAL_BIND_ADDRESS=localhost
 
 # Uygulama Ayarları
 APP_TITLE=Your App Title
