@@ -15,6 +15,10 @@ import tkinter as tk
 from sshtunnel import SSHTunnelForwarder
 import base64
 from cryptography.fernet import Fernet
+from dotenv import load_dotenv
+
+# .env dosyasını yükle
+load_dotenv()
 
 try:
     import pymongo
@@ -81,15 +85,22 @@ class ConfigManager:
     
     def load_config(self):
         """Config'i şifreli olarak yükle"""
+        # Çevre değişkenlerinden varsayılan değerleri al
+        backup_dir_name = os.getenv('BACKUP_DIR_NAME', 'damise_backups')
+        ssh_host = os.getenv('SSH_LOCAL_BIND_ADDRESS', 'localhost')
+        ssh_port = int(os.getenv('SSH_DEFAULT_PORT', '22'))
+        mongo_host = os.getenv('MONGODB_DEFAULT_HOST', 'localhost')
+        mongo_port = int(os.getenv('MONGODB_DEFAULT_PORT', '27017'))
+        
         default_config = {
-            "ssh_host": "ssh.damise.com",
-            "ssh_port": 22,
+            "ssh_host": ssh_host,
+            "ssh_port": ssh_port,
             "ssh_username": "",
             "ssh_password": "",
-            "mongo_host": "localhost",
-            "mongo_port": 27017,
+            "mongo_host": mongo_host,
+            "mongo_port": mongo_port,
             "saved_databases": [],
-            "backup_dir": os.path.join(os.path.expanduser("~"), "damise_backups"),
+            "backup_dir": os.path.join(os.path.expanduser("~"), backup_dir_name),
             "_ssh_encrypted": False
         }
         
@@ -344,6 +355,9 @@ class ConnectionManager:
     def connect_ssh(self, ssh_host, ssh_port, username, password, mongo_host, mongo_port):
         """SSH bağlantısı kur"""
         try:
+            # Çevre değişkenlerinden local bind address'i al
+            local_bind_host = os.getenv('SSH_LOCAL_BIND_ADDRESS', 'localhost')
+            
             self.log(f"SSH bağlantısı kuruluyor: {username}@{ssh_host}:{ssh_port}")
 
             self.ssh_tunnel = SSHTunnelForwarder(
@@ -351,12 +365,12 @@ class ConnectionManager:
                 ssh_username=username,
                 ssh_password=password,
                 remote_bind_address=(mongo_host, mongo_port),
-                local_bind_address=('localhost', 0)
+                local_bind_address=(local_bind_host, 0)
             )
             self.ssh_tunnel.start()
 
-            self.log(f"SSH tüneli başarıyla açıldı (localhost:{self.ssh_tunnel.local_bind_port})")
-            return True, f"localhost:{self.ssh_tunnel.local_bind_port}"
+            self.log(f"SSH tüneli başarıyla açıldı ({local_bind_host}:{self.ssh_tunnel.local_bind_port})")
+            return True, f"{local_bind_host}:{self.ssh_tunnel.local_bind_port}"
 
         except Exception as e:
             self.log(f"SSH bağlantı hatası: {str(e)}")
@@ -368,8 +382,12 @@ class ConnectionManager:
             return False, "SSH bağlantısı bulunamadı"
 
         try:
-            self.mongo_uri = f"mongodb://localhost:{self.ssh_tunnel.local_bind_port}/"
-            client = pymongo.MongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
+            # Çevre değişkenlerinden değerleri al
+            local_bind_host = os.getenv('SSH_LOCAL_BIND_ADDRESS', 'localhost')
+            connection_timeout = int(os.getenv('MONGODB_CONNECTION_TIMEOUT', '5000'))
+            
+            self.mongo_uri = f"mongodb://{local_bind_host}:{self.ssh_tunnel.local_bind_port}/"
+            client = pymongo.MongoClient(self.mongo_uri, serverSelectionTimeoutMS=connection_timeout)
             client.admin.command('ping')
 
             self.available_dbs = client.list_database_names()
@@ -391,7 +409,10 @@ class ConnectionManager:
             return []
 
         try:
-            client = pymongo.MongoClient(self.mongo_uri, serverSelectionTimeoutMS=10000)
+            # Çevre değişkeninden timeout değerini al
+            connection_timeout = int(os.getenv('MONGODB_CONNECTION_TIMEOUT', '10000'))
+            
+            client = pymongo.MongoClient(self.mongo_uri, serverSelectionTimeoutMS=connection_timeout)
             db = client[db_name]
             collections = db.list_collection_names()
             client.close()
@@ -461,22 +482,29 @@ class MongoBackupGUI:
             messagebox.showerror("Yetkisiz Erişim", "MongoDB Yedekleme Aracı'nı açmak için admin girişi yapmalısınız!")
             raise RuntimeError("Admin yetkisi olmadan MongoBackupGUI başlatılamaz.")
 
+        # Çevre değişkenlerinden değerleri al
+        backup_app_title = os.getenv('BACKUP_APP_TITLE', 'Damise MongoDB Yedekleme Aracı')
+        app_version = os.getenv('APP_VERSION', '2.0')
+        backup_window_width = int(os.getenv('BACKUP_WINDOW_WIDTH', '1000'))
+        backup_window_height = int(os.getenv('BACKUP_WINDOW_HEIGHT', '900'))
+        
         self.root = tk.Toplevel(parent)
-        self.root.title("Damise MongoDB Yedekleme Aracı v2.0 - Güvenli Tarih Bazlı Sistem")
-        self.root.geometry("1000x900")
+        self.root.title(f"{backup_app_title} v{app_version} - Güvenli Tarih Bazlı Sistem")
+        self.root.geometry(f"{backup_window_width}x{backup_window_height}")
         self.root.resizable(True, True)
         self.on_close_callback = on_close_callback
         self.user_data = user_data
 
         # Config yöneticisi
-        config_file = os.path.join(get_base_path(), "damise_config.json")
+        config_file_name = os.getenv('CONFIG_FILE_NAME', 'damise_config.json')
+        config_file = os.path.join(get_base_path(), config_file_name)
         self.config_manager = ConfigManager(config_file)
         self.config = self.config_manager.load_config()
 
         # Gerekli modül kontrolü
         if pymongo is None:
             messagebox.showerror("Eksik Modül", 
-                               "pymongo modülü bulunamadı!\n\nLütfen şu komutu çalıştırın:\npip install pymongo sshtunnel cryptography\n\nPython 3.8+ gereklidir.")
+                               "pymongo modülü bulunamadı!\n\nLütfen şu komutu çalıştırın:\npip install pymongo sshtunnel cryptography python-dotenv\n\nPython 3.8+ gereklidir.")
             self.root.destroy()
             return
 
@@ -605,12 +633,16 @@ class MongoBackupGUI:
         mongo_frame = ttk.Frame(conn_frame)
         mongo_frame.pack(fill=tk.X, pady=(10, 10))
 
+        # Çevre değişkenlerinden varsayılan değerleri al
+        mongo_host = os.getenv('MONGODB_DEFAULT_HOST', 'localhost')
+        mongo_port = os.getenv('MONGODB_DEFAULT_PORT', '27017')
+
         ttk.Label(mongo_frame, text="MongoDB Host:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.mongo_host_var = tk.StringVar(value="localhost")  # SADECE VARSAYILAN
+        self.mongo_host_var = tk.StringVar(value=mongo_host)  # SADECE VARSAYILAN
         ttk.Entry(mongo_frame, textvariable=self.mongo_host_var, width=25).grid(row=0, column=1, sticky=tk.W, padx=5)
 
         ttk.Label(mongo_frame, text="Port:").grid(row=0, column=2, sticky=tk.W, padx=(15, 5))
-        self.mongo_port_var = tk.StringVar(value="27017")  # SADECE VARSAYILAN
+        self.mongo_port_var = tk.StringVar(value=mongo_port)  # SADECE VARSAYILAN
         ttk.Entry(mongo_frame, textvariable=self.mongo_port_var, width=8).grid(row=0, column=3, sticky=tk.W, padx=5)
 
         # Bağlantı butonları ve durum
@@ -832,11 +864,14 @@ class MongoBackupGUI:
             return
         
         # Alanları doldur (şifre hariç)
+        mongo_host = os.getenv('MONGODB_DEFAULT_HOST', 'localhost')
+        mongo_port = int(os.getenv('MONGODB_DEFAULT_PORT', '27017'))
+        
         self.ssh_host_var.set(preset_data.get("ssh_host", ""))
         self.ssh_port_var.set(str(preset_data.get("ssh_port", 22)))
         self.ssh_user_var.set(preset_data.get("ssh_username", ""))
-        self.mongo_host_var.set(preset_data.get("mongo_host", "localhost"))
-        self.mongo_port_var.set(str(preset_data.get("mongo_port", 27017)))
+        self.mongo_host_var.set(preset_data.get("mongo_host", mongo_host))
+        self.mongo_port_var.set(str(preset_data.get("mongo_port", mongo_port)))
         
         # Şifre alanını temizle (güvenlik)
         self.ssh_pass_var.set("")
@@ -1064,7 +1099,9 @@ class MongoBackupGUI:
         self.log(f"🚀 Tam yedekleme başlatıldı - Hedef: {backup_dir}/{today}/")
         
         for db_name in selected_dbs:
-            self.backup_manager.mongo_uri = f"mongodb://localhost:{self.connection_manager.ssh_tunnel.local_bind_port}/{db_name}"
+            # Çevre değişkeninden local bind host'u al
+            local_bind_host = os.getenv('SSH_LOCAL_BIND_ADDRESS', 'localhost')
+            self.backup_manager.mongo_uri = f"mongodb://{local_bind_host}:{self.connection_manager.ssh_tunnel.local_bind_port}/{db_name}"
             output_dir, success = self.backup_manager.backup_database(db_name)
             if success:
                 success_count += 1
@@ -1203,7 +1240,9 @@ class MongoBackupGUI:
         if not self.backup_manager:
             return
 
-        self.backup_manager.mongo_uri = f"mongodb://localhost:{self.connection_manager.ssh_tunnel.local_bind_port}/{db_name}"
+        # Çevre değişkeninden local bind host'u al
+        local_bind_host = os.getenv('SSH_LOCAL_BIND_ADDRESS', 'localhost')
+        self.backup_manager.mongo_uri = f"mongodb://{local_bind_host}:{self.connection_manager.ssh_tunnel.local_bind_port}/{db_name}"
         self.backup_manager.backup_dir = self.backup_dir_var.get()
 
         today = datetime.now().strftime("%d.%m.%Y")

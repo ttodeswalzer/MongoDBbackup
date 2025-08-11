@@ -13,6 +13,9 @@ cryptography>=3.4.8
 # MongoDB bağlantısı ve işlemleri
 pymongo>=4.0.0
 
+# Çevre değişkenleri yönetimi
+python-dotenv>=0.19.0
+
 # BSON (MongoDB veri formatı)
 # pymongo ile birlikte gelir, ayrı yükleme gerekmez
 
@@ -20,4 +23,4 @@ pymongo>=4.0.0
 # pip install -r requirements.txt
 
 # Alternatif tek komut:
-# pip install requests sshtunnel cryptography pymongo
+# pip install requests sshtunnel cryptography pymongo python-dotenv
