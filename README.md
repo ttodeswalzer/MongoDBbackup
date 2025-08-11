@@ -1,4 +1,4 @@
-# Damise MongoDB Yedekleme Sistemi v2.0
+# Damise MongoDB Yedekleme Sistemi
 
 MongoDB veritabanlarının güvenli bir şekilde SSH tüneli üzerinden yedeklenmesi için geliştirilmiş profesyonel masaüstü uygulaması.
 
@@ -67,8 +67,8 @@ cp .env.example .env
 
 ```bash
 # API Yapılandırması
-DAMISE_API_BASE_URL=https://your-api-domain.com
-DAMISE_LOGIN_ENDPOINT=/users/login
+API_BASE_URL=https://your-api-domain.com
+LOGIN_ENDPOINT=/users/login
 
 # MongoDB Bağlantı Ayarları
 MONGODB_DEFAULT_HOST=localhost
@@ -94,7 +94,7 @@ python DamiseAuthGUI.py
 
 ### 2. Admin Kimlik Doğrulama
 
-- Damise API sistemi üzerinden admin kimlik bilgilerinizi girin
+- API sistemi üzerinden admin kimlik bilgilerinizi girin
 - "Beni hatırla" seçeneği ile güvenli oturum yönetimi
 - İnternet bağlantısı durumu otomatik olarak kontrol edilir
 
