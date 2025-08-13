@@ -188,8 +188,6 @@ damise_backups/
 Uygulama `.env` dosyası kullanarak yapılandırılır. Kullanılabilir tüm çevre değişkenleri:
 
 ### API Yapılandırması
-- `API_BASE_URL`: Ana API URL'si
-- `LOGIN_ENDPOINT`: Giriş endpoint'i (varsayılan: /users/login)
 
 ### MongoDB Ayarları
 - `MONGODB_DEFAULT_HOST`: Varsayılan MongoDB host (varsayılan: localhost)
